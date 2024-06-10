@@ -3,14 +3,38 @@ package main
 import (
 	"fmt"
 	"revx/db"
+	"revx/graph"
+	"revx/kafka"
 	// "time"
 )
 
 
 func main() {
 	fmt.Println("Graph Based Recommendations System in Golang")
-	db.ConnectDb()
-	defer db.CloseDb()
+	err := db.ConnectDb()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Connected to MongoDb Successfully!")
+	graph := graph.Create()
+	fmt.Println("Graph Created Successfully!")
+	userActionsKafka := kafka.Initialize("test-user-actions")
+	postActionsKafka := kafka.Initialize("test-post-actions")
+
+	defer func() {
+		if userActionsKafka.Close() != nil {
+			fmt.Println("Error closing user actions kafka")
+		}
+		if postActionsKafka.Close() != nil {
+			fmt.Println("Error closing post actions kafka")
+		}
+		db.CloseDb()
+	}()
+
+	go kafka.UserActionConsumer(userActionsKafka, graph)
+	kafka.PostActionConsumer(postActionsKafka, graph)
+
+
 	// err := db.CreateUser("Rohan Jaiswal", []string{"f1", "race", "cars"})
 	// if err != nil {
 	// 	fmt.Println(err)

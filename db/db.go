@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,56 +17,60 @@ var cli *mongo.Client
 
 // User represents a user in the system
 type User struct {
-	Name     string               `bson:"name"`
-	Posts    []primitive.ObjectID `bson:"posts"`
-	Features []string             `bson:"features"`
-	AdditionalFeatures []string   `bson:"additional_features"`
+	Name               string               `bson:"name"`
+	Features           []string             `bson:"features"`
+	Country            string               `bson:"country"`
+	AdditionalFeatures []string             `bson:"additional_features"`
+	SeenPosts          []primitive.ObjectID `bson:"seen_posts"`
+	Posts              []primitive.ObjectID `bson:"posts"`
 }
 
 // Post represents a post made by a user
 type Post struct {
 	Text        string               `bson:"text"`
 	Features    []string             `bson:"features"`
-	CreatedAt   time.Time            `bson:"created_at"`
 	Likes       []primitive.ObjectID `bson:"likes"`
 	DisLikes    []primitive.ObjectID `bson:"dislikes"`
 	LikesToday  int                  `bson:"likes_today"`
+	CreatedAt   time.Time            `bson:"created_at"`
 	CurrentDate time.Time            `bson:"current_date"`
 }
 
 // connect to db
-func ConnectDb() {
+func ConnectDb() error {
 	// Connect to the database
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
 	// Connect to MongoDB
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Ping the MongoDB server
 	err = client.Ping(context.Background(), nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	fmt.Println("Connected to MongoDB!")
 
 	// Get a handle for the users collection
 	cli = client
 	collUser = client.Database("graphite").Collection("users")
 	collPost = client.Database("graphite").Collection("posts")
+
+	return nil
 }
 
 // close db connection
-func CloseDb() {
+func CloseDb() error {
 	err := cli.Disconnect(context.Background())
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
 
 // create a new user
-func CreateUser(username string, features []string) error {
+func CreateUser(username string, features []string, country string) error {
 	//check if user already exists
 	var existingUser User
 	err := collUser.FindOne(context.Background(), bson.M{"name": username}).Decode(&existingUser)
@@ -76,9 +79,12 @@ func CreateUser(username string, features []string) error {
 	}
 
 	user := User{
-		Name:     username,
-		Posts:    []primitive.ObjectID{},
-		Features: features,
+		Name:               username,
+		Features:           features,
+		Country:            country,
+		AdditionalFeatures: []string{},
+		Posts:              []primitive.ObjectID{},
+		SeenPosts:          []primitive.ObjectID{},
 	}
 
 	_, err = collUser.InsertOne(context.Background(), user)
@@ -101,11 +107,11 @@ func AddPostToUser(userId string, postText string, features []string, t time.Tim
 		return fmt.Errorf("user with id %s does not exist", userId)
 	}
 	post := Post{
-		Text:      postText,
-		Features:  features,
-		CreatedAt: t,
-		Likes:     []primitive.ObjectID{},
-		DisLikes:  []primitive.ObjectID{},
+		Text:        postText,
+		Features:    features,
+		CreatedAt:   t,
+		Likes:       []primitive.ObjectID{},
+		DisLikes:    []primitive.ObjectID{},
 		CurrentDate: time.Now().Truncate(24 * time.Hour),
 	}
 	res, err := collPost.InsertOne(context.Background(), post)
@@ -222,34 +228,34 @@ func DisLikePost(userId string, postId string) error {
 	return nil
 }
 
-// used in Like Post helps in handling the likes_today field 
-/* known issue: if the like button is clicked multiple times by the same user on 
+// used in Like Post helps in handling the likes_today field
+/* known issue: if the like button is clicked multiple times by the same user on
 the same post on the same day, the likes_today field will be incremented multiple times */
 // this can be fixed by adding a check in the frontend
 func updateLikesToday(postId primitive.ObjectID) error {
-    // Retrieve the existing post
-    var existingPost Post
-    err := collPost.FindOne(context.Background(), bson.M{"_id": postId}).Decode(&existingPost)
-    if err != nil {
-        return fmt.Errorf("post with id %s does not exist", postId.Hex())
-    }
+	// Retrieve the existing post
+	var existingPost Post
+	err := collPost.FindOne(context.Background(), bson.M{"_id": postId}).Decode(&existingPost)
+	if err != nil {
+		return fmt.Errorf("post with id %s does not exist", postId.Hex())
+	}
 
-    // Check the current date
-    currentDate := time.Now().Truncate(24 * time.Hour).Add(24 * time.Hour)
-    var update bson.M
-    if existingPost.CurrentDate.Truncate(24 * time.Hour).Equal(currentDate) {
-        // Same day, increment likes_today
-        update = bson.M{"$inc": bson.M{"likes_today": 1}}
-    } else {
-        // New day, reset likes_today to 1 and update current_date
-        update = bson.M{"$set": bson.M{"likes_today": 1, "current_date": currentDate}}
-    }
+	// Check the current date
+	currentDate := time.Now().Truncate(24 * time.Hour).Add(24 * time.Hour)
+	var update bson.M
+	if existingPost.CurrentDate.Truncate(24 * time.Hour).Equal(currentDate) {
+		// Same day, increment likes_today
+		update = bson.M{"$inc": bson.M{"likes_today": 1}}
+	} else {
+		// New day, reset likes_today to 1 and update current_date
+		update = bson.M{"$set": bson.M{"likes_today": 1, "current_date": currentDate}}
+	}
 
-    // Apply the update
-    _, err = collPost.UpdateOne(context.Background(), bson.M{"_id": postId}, update)
-    if err != nil {
-        return err
-    }
+	// Apply the update
+	_, err = collPost.UpdateOne(context.Background(), bson.M{"_id": postId}, update)
+	if err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }

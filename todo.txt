@@ -1,0 +1,15 @@
+work done: 
+1.graph creation
+2.user addition
+3.post addition
+4.like and dislike addition
+5.trending posts
+
+remaining work:
+6.kafka integration
+7.graph updation
+8.user updation
+9.misceallaneous works
+10.user recommendation
+11.testing
+12.minimal frontend

@@ -3,6 +3,8 @@ package graph
 import (
 	"errors"
 	"strings"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Graph struct {
@@ -22,7 +24,6 @@ func (g *Graph) GetNodesNames() *[]string {
 }
 
 func (g *Graph) GetGraphMap() *[][]float32 {
-	
 	return &g.Map
 }
 
@@ -50,5 +51,15 @@ func (g *Graph) AddNode(name string) error {
 		}
 		g.Map[i] = append(g.Map[i], 1)
 	}
+	return nil
+}
+
+func (g *Graph) UpdateGraphFromUserAction(userId primitive.ObjectID, postId primitive.ObjectID, action int8, timeSpent uint8) error {
+
+	return nil
+}
+
+func (g *Graph) UpdateGraphFromPostAction(postId primitive.ObjectID, features []string) error {
+
 	return nil
 }
