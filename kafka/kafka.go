@@ -56,7 +56,7 @@ func (k *Kafka) Close() error {
 }
 
 
-func UserActionConsumer(k *Kafka, graph *graph.Graph) {
+func (k* Kafka) UserActionConsumer(graph *graph.Graph) {
 	for {
 		message, err := k.Reader.FetchMessage(context.Background())
 		if err != nil {
@@ -78,7 +78,7 @@ func UserActionConsumer(k *Kafka, graph *graph.Graph) {
 	}
 }
 
-func PostActionConsumer(k *Kafka, graph *graph.Graph) {
+func (k* Kafka) PostActionConsumer(graph *graph.Graph) {
 	for {
 		message, err := k.Reader.FetchMessage(context.Background())
 		if err != nil {

@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"revx/db"
-	"revx/graph"
-	"revx/kafka"
-	// "time"
+	g "revx/graph"
+	k "revx/kafka"
+	"time"
 )
 
 
@@ -15,12 +15,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Connected to MongoDb Successfully!")
-	graph := graph.Create()
+	
+	graph, err := g.Create("graph.txt")
+	if err != nil {
+		panic(err)
+	}
+	
 	fmt.Println("Graph Created Successfully!")
-	userActionsKafka := kafka.Initialize("test-user-actions")
-	postActionsKafka := kafka.Initialize("test-post-actions")
+	userActionsKafka := k.Initialize("test-user-actions")
+	postActionsKafka := k.Initialize("test-post-actions")
 
+	fmt.Println(graph)
+	// function to close kafka and db connections
 	defer func() {
 		if userActionsKafka.Close() != nil {
 			fmt.Println("Error closing user actions kafka")
@@ -30,9 +36,24 @@ func main() {
 		}
 		db.CloseDb()
 	}()
+	
+	// Graph Upload
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			fmt.Println("Uploading graph...")
+			err := graph.UploadGraph("graph.txt")
+			if err != nil {
+				fmt.Printf("Error uploading graph: %v\n", err)
+			} else {
+				fmt.Println("Graph uploaded successfully")
+			}
+		}
+	}()
 
-	go kafka.UserActionConsumer(userActionsKafka, graph)
-	kafka.PostActionConsumer(postActionsKafka, graph)
+	go userActionsKafka.UserActionConsumer(graph)
+	postActionsKafka.PostActionConsumer(graph)
 
 
 	// err := db.CreateUser("Rohan Jaiswal", []string{"f1", "race", "cars"})

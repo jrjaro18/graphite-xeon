@@ -6,7 +6,7 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-    g := Create()
+    g, _ := Create("graph-test.txt")
     if g == nil {
         t.Fatalf("Expected non-nil Graph instance")
     }
@@ -19,7 +19,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestAddNode(t *testing.T) {
-    g := Create()
+    g, _ := Create("graph-test.txt")
 
     // Test adding a single node
     err := g.AddNode("Node1")
@@ -59,7 +59,7 @@ func TestAddNode(t *testing.T) {
 }
 
 func TestAddNode_EdgeCases(t *testing.T) {
-    g := Create()
+    g, _ := Create("graph-test.txt")
 
     // Test adding a node with leading and trailing spaces
     err := g.AddNode("  Node3  ")
@@ -93,7 +93,7 @@ func TestAddNode_EdgeCases(t *testing.T) {
 }
 
 func TestGraphMapInitialization(t *testing.T) {
-    g := Create()
+    g, _ := Create("graph-test.txt")
 
     g.AddNode("A")
     g.AddNode("B")
